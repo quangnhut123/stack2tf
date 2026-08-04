@@ -1,29 +1,49 @@
-# Example .circleci/config.yml for a repo that uses the stack2tf orb.
-# Replace <namespace> with where you published the orb (see circleci/orb.yml).
+# Example .circleci/config.yml for a repo that uses stack2tf.
+#
+# This version needs NO orb — it installs stack2tf from PyPI and runs it, so it
+# works immediately. If you'd rather use the orb, publish circleci/orb.yml to
+# your CircleCI namespace first (see the README "Reusable CircleCI orb"
+# section), then use the commented orb form at the bottom.
 version: 2.1
 
-orbs:
-  stack2tf: <namespace>/stack2tf@1.0.0
+jobs:
+  plan:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run:
+          name: Install stack2tf + terraform
+          command: |
+            pip install stack2tf
+            curl -fsSL https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip -o /tmp/tf.zip
+            unzip -o /tmp/tf.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
+      - run:
+          name: stack2tf plan
+          command: stack2tf plan --chdir examples/local-stack
 
 workflows:
   infra:
     jobs:
-      # No-cloud validation on every push (great PR gate).
-      - stack2tf/stack2tf:
-          name: plan
-          command: plan
-          chdir: examples/local-stack
-          # source: stack2tf==0.2.0   # pin a version; default installs latest from PyPI
+      - plan
 
-      # Real apply, gated to main. Configure AWS creds/OIDC via a context.
-      - stack2tf/stack2tf:
-          name: apply
-          command: apply
-          chdir: my-stack
-          deployment: prod
-          args: "--state-bucket my-tf-state --state-region ap-southeast-1 --state-dynamodb-table tf-locks --parallelism 4"
-          context: aws-oidc
-          requires: [plan]
-          filters:
-            branches:
-              only: main
+# ---------------------------------------------------------------------------
+# Orb form (only after you publish circleci/orb.yml to your namespace):
+#
+# orbs:
+#   stack2tf: <namespace>/stack2tf@1.0.0
+# workflows:
+#   infra:
+#     jobs:
+#       - stack2tf/stack2tf:
+#           command: plan
+#           chdir: examples/local-stack
+#       - stack2tf/stack2tf:
+#           command: apply
+#           chdir: my-stack
+#           deployment: prod
+#           args: "--state-bucket my-tf-state --state-region ap-southeast-1 --parallelism 4"
+#           context: aws-oidc
+#           requires: [plan]
+#           filters: { branches: { only: main } }
+# ---------------------------------------------------------------------------
