@@ -361,6 +361,24 @@ def tf(cmd, cwd, tf_bin, env=None, capture=False):
                           capture_output=capture, text=True, check=True)
 
 
+def _tf_version(tf_bin):
+    """Return (major, minor) of the terraform/tofu binary, or None if unknown."""
+    v = ""
+    try:
+        r = subprocess.run([tf_bin, "version", "-json"], capture_output=True,
+                           text=True, check=True)
+        v = json.loads(r.stdout or "{}").get("terraform_version", "")
+    except Exception:  # noqa
+        try:
+            r = subprocess.run([tf_bin, "version"], capture_output=True, text=True)
+            m = re.search(r"v(\d+)\.(\d+)\.\d+", r.stdout)
+            v = f"{m.group(1)}.{m.group(2)}" if m else ""
+        except Exception:  # noqa
+            return None
+    m = re.match(r"(\d+)\.(\d+)", v)
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
 def _run_one(n, by_name, out_dir, meta, collected, tf_bin, action, env):
     """Generate tfvars from collected outputs, run terraform, return (name, outputs, summary).
     For plan: capture `plan -out` + `show -json` to derive planned outputs and a
@@ -520,6 +538,14 @@ def run(stack_dir, deploy_file, out_root, tf_bin, action, dry_run, target,
 
     if not shutil.which(tf_bin):
         raise SystemExit(f"'{tf_bin}' not found on PATH; install it or use --dry-run")
+
+    # native S3 lockfile needs terraform >= 1.10 / opentofu >= 1.10
+    if state and not state.get("dynamodb_table") and not state.get("no_lock"):
+        ver = _tf_version(tf_bin)
+        if ver and ver < (1, 10):
+            print(f"    (warning: native S3 state locking (use_lockfile) needs "
+                  f"{tf_bin} >= 1.10; detected {ver[0]}.{ver[1]}. "
+                  f"Use --state-dynamodb-table, --state-no-lock, or upgrade.)")
 
     # OIDC token passed to terraform as TF_VAR_identity_token (kept off disk)
     env = dict(os.environ)
