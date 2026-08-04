@@ -37,7 +37,7 @@ same model as Terraform Stacks, without the hosted platform.
 - [CLI reference](#cli-reference)
 - [Concepts](#concepts--stacks-feature-mapping)
 - [Authentication](#authentication)
-- [State](#state)
+- [State and locking](#state-and-locking)
 - [Whole-stack planning](#whole-stack-planning)
 - [Cross-stack outputs](#cross-stack-outputs)
 - [CI/CD](#cicd)
@@ -228,11 +228,25 @@ The OIDC JWT is passed as `var.identity_token` via `TF_VAR_identity_token` (kept
 off disk). Provide it with `--identity-token-file` or `AWS_WEB_IDENTITY_TOKEN` /
 `AWS_WEB_IDENTITY_TOKEN_FILE`.
 
-## State
+## State and locking
 
-By default each component keeps local state. Pass `--state-bucket` (with
-`--state-region`, optional `--state-dynamodb-table`) to generate an S3 backend
-per component keyed `<prefix>/<deployment>/<component>/terraform.tfstate`.
+Each component has its **own state** (per component, like Terraform Stacks). By
+default state is local; pass `--state-bucket` (with `--state-region`) to generate
+an S3 backend per component, keyed
+`<prefix>/<deployment>/<component>/terraform.tfstate`.
+
+**Locking uses exactly one mechanism — you don't need both S3 and DynamoDB:**
+
+| Flags | Locking |
+|---|---|
+| `--state-bucket` (default) | **Native S3 lock file** (`use_lockfile = true`) — S3 only, no DynamoDB. Requires Terraform ≥ 1.10 / OpenTofu ≥ 1.10. |
+| `--state-bucket --state-dynamodb-table <t>` | DynamoDB lock (legacy) |
+| `--state-bucket --state-no-lock` | No locking (not recommended) |
+| _no `--state-bucket`_ | Local backend (local file lock only) |
+
+Locking is delegated to the Terraform backend and is **per component** (matching
+Terraform Stacks' per-component state). There is no separate stack-wide lock;
+`--parallelism` runs distinct components, each locking its own state.
 `validate` always runs `init -backend=false`, so it works offline regardless.
 
 ## Whole-stack planning

@@ -315,8 +315,14 @@ def _backend_block(unit, meta, state):
              f'    key    = "{key}"',
              f'    region = "{state["region"]}"',
              "    encrypt = true"]
+    # Locking: use exactly one mechanism.
+    #   - DynamoDB if a table is given (legacy),
+    #   - otherwise native S3 lock file (Terraform >= 1.10 / OpenTofu >= 1.10),
+    #   - unless explicitly disabled.
     if state.get("dynamodb_table"):
         lines.append(f'    dynamodb_table = "{state["dynamodb_table"]}"')
+    elif not state.get("no_lock"):
+        lines.append("    use_lockfile = true")
     lines += ["  }", "}", ""]
     return "\n".join(lines)
 
@@ -598,7 +604,10 @@ if __name__ == "__main__":
     ap.add_argument("--identity-token-file", help="file containing the OIDC JWT")
     ap.add_argument("--state-bucket", help="S3 bucket for remote state")
     ap.add_argument("--state-region", help="region of the S3 state bucket")
-    ap.add_argument("--state-dynamodb-table", help="DynamoDB table for state locking")
+    ap.add_argument("--state-dynamodb-table",
+                    help="DynamoDB table for locking (optional; default is native S3 lockfile)")
+    ap.add_argument("--state-no-lock", action="store_true",
+                    help="disable state locking entirely (not recommended)")
     ap.add_argument("--state-key-prefix", default="stack2tf", help="S3 key prefix")
     ap.add_argument("--mocks", help="JSON file of mock outputs {component: {out: val}}")
     ap.add_argument("--upstream", action="append", default=[],
@@ -608,6 +617,7 @@ if __name__ == "__main__":
     if args.state_bucket:
         state = {"bucket": args.state_bucket, "region": args.state_region,
                  "dynamodb_table": args.state_dynamodb_table,
+                 "no_lock": args.state_no_lock,
                  "key_prefix": args.state_key_prefix}
     mocks = load_json_file(args.mocks) if args.mocks else None
     run(args.stack_dir, args.deploy_file, args.out, args.tf,
