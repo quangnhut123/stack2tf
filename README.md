@@ -97,25 +97,36 @@ Each component instance becomes a standalone Terraform root module:
 
 ## Installation
 
-Clone and install the dependency:
+### From PyPI (recommended)
+
+stack2tf is published on [PyPI](https://pypi.org/project/stack2tf/):
 
 ```bash
-git clone <your-repo-url> stack2tf
-cd stack2tf
-pip install -r requirements.txt        # installs python-hcl2
-# terraform or tofu, e.g.:  brew install hashicorp/tap/terraform
+pip install stack2tf
 ```
 
-Or install it as a package to get a `stack2tf` command on your `PATH`:
+This puts a `stack2tf` command on your `PATH` (and installs the only runtime
+dependency, `python-hcl2`). You still need `terraform` or `tofu` available, e.g.:
 
 ```bash
-pip install stack2tf                   # once published to PyPI
-# from a clone:
-pip install .
-# or straight from git:
-pip install "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
+brew install hashicorp/tap/terraform     # or: brew install opentofu
+stack2tf --help
+```
 
-stack2tf plan --chdir examples/local-stack
+Pin a version if you prefer: `pip install stack2tf==0.1.0`.
+
+### From source
+
+```bash
+git clone https://github.com/quangnhut123/stack2tf.git
+cd stack2tf
+pip install .                          # or: pip install -r requirements.txt
+```
+
+Or install a specific tag straight from git:
+
+```bash
+pip install "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
 ```
 
 ## Quick start
