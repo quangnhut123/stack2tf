@@ -15,9 +15,9 @@ commands:
     description: Install stack2tf (pip) and the Terraform or OpenTofu CLI.
     parameters:
       source:
-        description: pip install target for stack2tf (git URL or version spec).
+        description: pip install target for stack2tf (PyPI spec or git URL).
         type: string
-        default: "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
+        default: "stack2tf"
       tf:
         description: Which CLI to install.
         type: enum
@@ -99,7 +99,7 @@ jobs:
         default: ""
       source:
         type: string
-        default: "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
+        default: "stack2tf"
     steps:
       - checkout
       - install:

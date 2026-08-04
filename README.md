@@ -354,7 +354,7 @@ wrapper disabled), and runs the command:
 
 ```yaml
 - uses: actions/checkout@v4          # checkout the repo that holds your stack
-- uses: quangnhut123/stack2tf@v0.1.0
+- uses: quangnhut123/stack2tf@v0.2.0
   with:
     command: plan                    # list | show | validate | plan | apply | destroy
     chdir: my-stack
@@ -363,48 +363,49 @@ wrapper disabled), and runs the command:
     args: "--state-bucket my-tf-state --state-region ap-southeast-1 --parallelism 4"
 ```
 
+A full, ready-to-copy workflow (PR plan gate + apply on `main` with AWS OIDC) is
+in [`examples/github-actions.yml`](examples/github-actions.yml).
+
 Inputs: `command`, `chdir` (required), `deployment`, `tf`, `args`,
 `python-version`, `terraform-version`, `tofu-version`. For real `apply`, add an
 `aws-actions/configure-aws-credentials` step (and `permissions: id-token: write`)
 before it.
 
-### Reusable CircleCI orb
+### CircleCI
 
-A publishable orb lives in `circleci/orb.yml`. Publish it once to your namespace:
-
-```bash
-circleci orb create <namespace>/stack2tf
-circleci orb publish circleci/orb.yml <namespace>/stack2tf@1.0.0
-```
-
-Then consume it (full example in `examples/circleci-config.yml`):
+The ready-to-use example [`examples/circleci-config.yml`](examples/circleci-config.yml)
+needs **no orb** — it installs stack2tf from PyPI and runs it, so it works
+immediately:
 
 ```yaml
 version: 2.1
-orbs:
-  stack2tf: <namespace>/stack2tf@1.0.0
-workflows:
-  infra:
-    jobs:
-      - stack2tf/stack2tf:
-          command: plan
-          chdir: examples/local-stack
-```
-
-### CircleCI (without the orb)
-
-```yaml
 jobs:
-  check:
+  plan:
     docker: [{ image: cimg/python:3.11 }]
     steps:
       - checkout
-      - run: pip install -r stack2tf/requirements.txt
       - run: |
-          curl -fsSL https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip -o tf.zip
-          unzip tf.zip && sudo mv terraform /usr/local/bin/
-      - run: python3 stack2tf/stack2tf.py plan --chdir stack2tf/examples/local-stack
+          pip install stack2tf
+          curl -fsSL https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip -o /tmp/tf.zip
+          unzip -o /tmp/tf.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
+      - run: stack2tf plan --chdir examples/local-stack
+workflows:
+  infra: { jobs: [plan] }
 ```
+
+### Optional: publish the CircleCI orb
+
+For a DRY `stack2tf/stack2tf` job, a publishable orb lives in `circleci/orb.yml`.
+It is **not on the CircleCI registry yet** — you publish it once to your own
+namespace (requires a CircleCI account + API token: `circleci setup`):
+
+```bash
+circleci namespace create <namespace> --org-id <your-org-id>   # once, if needed
+circleci orb create   <namespace>/stack2tf
+circleci orb publish  circleci/orb.yml <namespace>/stack2tf@1.0.0
+```
+
+Then use the orb form shown at the bottom of `examples/circleci-config.yml`.
 
 The `stack-plan.json` written by `plan` is a convenient CI artifact — upload it
 or surface its add/change/destroy totals on the pull request.
@@ -474,6 +475,7 @@ action.yml             reusable GitHub composite Action
 .github/workflows/     ci.yml (fixture check) + release.yml (publish to PyPI)
 circleci/orb.yml       publishable CircleCI orb
 examples/local-stack/  no-AWS, 2-component fixture for trying `plan`
+examples/github-actions.yml    consumer example workflow (uses the Action)
 examples/circleci-config.yml   consumer example for the orb
 ```
 

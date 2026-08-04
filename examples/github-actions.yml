@@ -1,0 +1,45 @@
+# Example GitHub Actions workflow for a repo that uses stack2tf.
+# Copy this to .github/workflows/stack2tf.yml in YOUR repo and adjust the
+# placeholders (chdir, deployment, role ARN, state bucket).
+#
+# Uses the reusable action published from this repo: quangnhut123/stack2tf@v0.2.0
+name: stack2tf
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # No-cloud validation on pull requests (a good gate) — plans the bundled
+  # example stack; swap `chdir` for your own stack directory.
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: quangnhut123/stack2tf@v0.2.0
+        with:
+          command: plan
+          chdir: examples/local-stack
+          # tf: tofu                 # optional: use OpenTofu instead of Terraform
+
+  # Real apply on main. Requires AWS credentials (via OIDC) and remote state.
+  apply:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write      # for aws-actions/configure-aws-credentials (OIDC)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<account-id>:role/ci-bootstrap
+          aws-region: ap-southeast-1
+      - uses: quangnhut123/stack2tf@v0.2.0
+        with:
+          command: apply
+          chdir: my-stack
+          deployment: prod
+          args: "--state-bucket my-tf-state --state-region ap-southeast-1 --parallelism 4"
