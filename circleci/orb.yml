@@ -12,24 +12,39 @@ description: >
 
 commands:
   install:
-    description: Install stack2tf (pip) and the Terraform CLI.
+    description: Install stack2tf (pip) and the Terraform or OpenTofu CLI.
     parameters:
       source:
         description: pip install target for stack2tf (git URL or version spec).
         type: string
         default: "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
+      tf:
+        description: Which CLI to install.
+        type: enum
+        enum: [terraform, tofu]
+        default: terraform
       terraform-version:
         type: string
         default: "1.15.8"
+      tofu-version:
+        type: string
+        default: "1.8.0"
     steps:
       - run:
-          name: Install stack2tf + terraform
+          name: Install stack2tf + << parameters.tf >>
           command: |
             pip install "<< parameters.source >>"
-            curl -fsSL "https://releases.hashicorp.com/terraform/<< parameters.terraform-version >>/terraform_<< parameters.terraform-version >>_linux_amd64.zip" -o /tmp/tf.zip
-            unzip -o /tmp/tf.zip -d /tmp
-            sudo mv /tmp/terraform /usr/local/bin/terraform
-            terraform version
+            if [ "<< parameters.tf >>" = "tofu" ]; then
+              curl -fsSL "https://github.com/opentofu/opentofu/releases/download/v<< parameters.tofu-version >>/tofu_<< parameters.tofu-version >>_linux_amd64.zip" -o /tmp/tf.zip
+              unzip -o /tmp/tf.zip -d /tmp
+              sudo mv /tmp/tofu /usr/local/bin/tofu
+              tofu version
+            else
+              curl -fsSL "https://releases.hashicorp.com/terraform/<< parameters.terraform-version >>/terraform_<< parameters.terraform-version >>_linux_amd64.zip" -o /tmp/tf.zip
+              unzip -o /tmp/tf.zip -d /tmp
+              sudo mv /tmp/terraform /usr/local/bin/terraform
+              terraform version
+            fi
 
   exec:
     description: Run a stack2tf command.
@@ -76,8 +91,9 @@ jobs:
         type: string
         default: ""
       tf:
-        type: string
-        default: "terraform"
+        type: enum
+        enum: [terraform, tofu]
+        default: terraform
       args:
         type: string
         default: ""
@@ -88,6 +104,7 @@ jobs:
       - checkout
       - install:
           source: << parameters.source >>
+          tf: << parameters.tf >>
       - exec:
           command: << parameters.command >>
           chdir: << parameters.chdir >>
