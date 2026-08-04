@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# stack2tf generated working tree (never commit generated modules / state)
+.stack2tf/
+**/.stack2tf/
+
+# Terraform / OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars.json
+plan.bin
+crash.log
+.terraform.lock.hcl
+
+# Secrets / tokens (defensive)
+*.jwt
+*token*
+*.pem
+.env
+
+# OS
+.DS_Store

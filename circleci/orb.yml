@@ -1,0 +1,96 @@
+# CircleCI orb for stack2tf.
+#
+# Publish to your namespace, e.g.:
+#   circleci orb create <namespace>/stack2tf
+#   circleci orb publish circleci/orb.yml <namespace>/stack2tf@1.0.0
+#
+# Then consume it (see examples/circleci-config.yml).
+version: 2.1
+description: >
+  Run HCP Terraform Stacks with plain Terraform / OpenTofu via stack2tf —
+  plan/apply/validate a whole deployment in dependency order.
+
+commands:
+  install:
+    description: Install stack2tf (pip) and the Terraform CLI.
+    parameters:
+      source:
+        description: pip install target for stack2tf (git URL or version spec).
+        type: string
+        default: "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
+      terraform-version:
+        type: string
+        default: "1.15.8"
+    steps:
+      - run:
+          name: Install stack2tf + terraform
+          command: |
+            pip install "<< parameters.source >>"
+            curl -fsSL "https://releases.hashicorp.com/terraform/<< parameters.terraform-version >>/terraform_<< parameters.terraform-version >>_linux_amd64.zip" -o /tmp/tf.zip
+            unzip -o /tmp/tf.zip -d /tmp
+            sudo mv /tmp/terraform /usr/local/bin/terraform
+            terraform version
+
+  exec:
+    description: Run a stack2tf command.
+    parameters:
+      command:
+        description: "list | show | validate | plan | apply | destroy"
+        type: string
+      chdir:
+        description: Path to the stack directory.
+        type: string
+      deployment:
+        type: string
+        default: ""
+      tf:
+        type: string
+        default: "terraform"
+      args:
+        description: Extra flags (e.g. --state-bucket ... --parallelism 4).
+        type: string
+        default: ""
+    steps:
+      - run:
+          name: stack2tf << parameters.command >>
+          command: |
+            DEPLOY=""
+            [ -n "<< parameters.deployment >>" ] && DEPLOY="--deployment << parameters.deployment >>"
+            stack2tf << parameters.command >> \
+              --chdir "<< parameters.chdir >>" \
+              --tf "<< parameters.tf >>" \
+              $DEPLOY << parameters.args >>
+
+jobs:
+  stack2tf:
+    description: Checkout, install stack2tf, and run one command.
+    docker:
+      - image: cimg/python:3.11
+    parameters:
+      command:
+        type: string
+        default: "plan"
+      chdir:
+        type: string
+      deployment:
+        type: string
+        default: ""
+      tf:
+        type: string
+        default: "terraform"
+      args:
+        type: string
+        default: ""
+      source:
+        type: string
+        default: "git+https://github.com/quangnhut123/stack2tf@v0.1.0"
+    steps:
+      - checkout
+      - install:
+          source: << parameters.source >>
+      - exec:
+          command: << parameters.command >>
+          chdir: << parameters.chdir >>
+          deployment: << parameters.deployment >>
+          tf: << parameters.tf >>
+          args: << parameters.args >>

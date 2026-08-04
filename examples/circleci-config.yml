@@ -1,0 +1,29 @@
+# Example .circleci/config.yml for a repo that uses the stack2tf orb.
+# Replace <namespace> with where you published the orb (see circleci/orb.yml).
+version: 2.1
+
+orbs:
+  stack2tf: <namespace>/stack2tf@1.0.0
+
+workflows:
+  infra:
+    jobs:
+      # No-cloud validation on every push (great PR gate).
+      - stack2tf/stack2tf:
+          name: plan
+          command: plan
+          chdir: examples/local-stack
+          # source: git+https://github.com/quangnhut123/stack2tf@v0.1.0   # if not on PyPI
+
+      # Real apply, gated to main. Configure AWS creds/OIDC via a context.
+      - stack2tf/stack2tf:
+          name: apply
+          command: apply
+          chdir: my-stack
+          deployment: prod
+          args: "--state-bucket my-tf-state --state-region ap-southeast-1 --state-dynamodb-table tf-locks --parallelism 4"
+          context: aws-oidc
+          requires: [plan]
+          filters:
+            branches:
+              only: main

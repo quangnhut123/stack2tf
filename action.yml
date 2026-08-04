@@ -1,0 +1,73 @@
+name: stack2tf
+description: Run HCP Terraform Stacks with plain Terraform / OpenTofu (plan/apply/validate a whole deployment).
+branding:
+  icon: layers
+  color: purple
+
+inputs:
+  command:
+    description: "stack2tf command: list | show | validate | plan | apply | destroy"
+    required: true
+  chdir:
+    description: "Path to the stack directory (contains *.tfcomponent.hcl / *.tfdeploy.hcl)"
+    required: true
+  deployment:
+    description: "Deployment name (default: all discovered)"
+    required: false
+    default: ""
+  tf:
+    description: "Binary to drive: terraform or tofu"
+    required: false
+    default: "terraform"
+  args:
+    description: "Extra flags passed through to stack2tf (e.g. --state-bucket ... --parallelism 4)"
+    required: false
+    default: ""
+  python-version:
+    description: "Python version"
+    required: false
+    default: "3.11"
+  terraform-version:
+    description: "Terraform version (when tf=terraform)"
+    required: false
+    default: "latest"
+  tofu-version:
+    description: "OpenTofu version (when tf=tofu)"
+    required: false
+    default: "latest"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install stack2tf
+      shell: bash
+      run: pip install "${{ github.action_path }}"
+
+    - name: Setup Terraform
+      if: ${{ inputs.tf == 'terraform' }}
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+        terraform_wrapper: false        # required: stack2tf parses `terraform show -json`
+
+    - name: Setup OpenTofu
+      if: ${{ inputs.tf == 'tofu' }}
+      uses: opentofu/setup-opentofu@v1
+      with:
+        tofu_version: ${{ inputs.tofu-version }}
+        tofu_wrapper: false
+
+    - name: Run stack2tf
+      shell: bash
+      run: |
+        set -euo pipefail
+        DEPLOY=""
+        if [ -n "${{ inputs.deployment }}" ]; then DEPLOY="--deployment ${{ inputs.deployment }}"; fi
+        stack2tf "${{ inputs.command }}" \
+          --chdir "${{ inputs.chdir }}" \
+          --tf "${{ inputs.tf }}" \
+          $DEPLOY ${{ inputs.args }}
