@@ -463,33 +463,30 @@ setup and guidelines. In short:
 
 ## Releasing
 
-Releases are published automatically by `.github/workflows/release.yml` when a
-GitHub Release is published, using **PyPI Trusted Publishing (OIDC)** — no API
-token or secret is stored. Routing:
+Releases are published to [PyPI](https://pypi.org/project/stack2tf/)
+automatically by `.github/workflows/release.yml` when a GitHub Release is
+published, using **PyPI Trusted Publishing (OIDC)** — no API token or secret is
+stored.
 
-- **Pre-release** (GitHub Release marked *pre-release*, e.g. tag `v0.2.0rc1`) →
-  [TestPyPI](https://test.pypi.org/project/stack2tf/)
-- **Normal release** (e.g. tag `v0.2.0`) → [PyPI](https://pypi.org/project/stack2tf/)
-
-One-time setup — add a trusted publisher on **both** PyPI and TestPyPI
+One-time setup — add a trusted publisher on PyPI
 (Project → Settings → Publishing → *Add a pending publisher*):
 
-| Field | PyPI | TestPyPI |
-|---|---|---|
-| Owner | your GitHub org/user | same |
-| Repository | your repo name | same |
-| Workflow name | `release.yml` | `release.yml` |
-| Environment | `pypi` | `testpypi` |
+| Field | Value |
+|---|---|
+| Owner | your GitHub org/user |
+| Repository | your repo name |
+| Workflow name | `release.yml` |
+| Environment | `pypi` |
 
 ### Release checklist
 
 1. Update `CHANGELOG.md` — move items from **Unreleased** into a new version section.
-2. Bump `version` in `pyproject.toml` (PEP 440, e.g. `0.2.0` or `0.2.0rc1`).
-3. Commit, tag, and push: `git tag v0.2.0 && git push origin main --tags`.
-4. Create a GitHub Release for the tag (tick **pre-release** to route to TestPyPI).
+2. Bump `version` in `pyproject.toml` (PEP 440, e.g. `0.2.0`).
+3. Commit, tag, and push: `git tag v0.2.0 && git push origin v0.2.0`.
+4. Create a GitHub Release for the tag.
 5. The workflow builds sdist + wheel, **verifies the tag matches the
-   `pyproject.toml` version**, and publishes to the right index.
-6. Verify the install: `pip install stack2tf==0.2.0` (or the TestPyPI index URL for pre-releases).
+   `pyproject.toml` version**, and publishes to PyPI.
+6. Verify the install: `pip install stack2tf==0.2.0`.
 
 ## License
 

@@ -1,11 +1,9 @@
 name: Release to PyPI
 
-# Publishes the package when a GitHub Release is published, using PyPI Trusted
-# Publishing (OIDC) — no API token/secret required.
-#   * Release marked "pre-release"  -> TestPyPI  (https://test.pypi.org)
-#   * Normal release                -> PyPI      (https://pypi.org)
-# One-time setup: add a trusted publisher on BOTH PyPI and TestPyPI for
-# owner=<org>, repo=<repo>, workflow=release.yml, environment=pypi / testpypi.
+# Publishes the package to PyPI when a GitHub Release is published, using PyPI
+# Trusted Publishing (OIDC) — no API token/secret required.
+# One-time setup: add a trusted publisher on PyPI for
+# owner=<org>, repo=<repo>, workflow=release.yml, environment=pypi.
 
 on:
   release:
@@ -45,30 +43,9 @@ jobs:
           name: dist
           path: dist/
 
-  testpypi-publish:
-    name: Publish to TestPyPI (pre-releases)
-    needs: build
-    if: ${{ github.event.release.prerelease }}
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/project/stack2tf/
-    permissions:
-      id-token: write        # trusted publishing (OIDC)
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-
   pypi-publish:
-    name: Publish to PyPI (final releases)
+    name: Publish to PyPI
     needs: build
-    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     environment:
       name: pypi
