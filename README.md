@@ -494,10 +494,14 @@ setup and guidelines. In short:
 
 ## Releasing
 
-Releases are published to [PyPI](https://pypi.org/project/stack2tf/)
-automatically by `.github/workflows/release.yml` when a GitHub Release is
-published, using **PyPI Trusted Publishing (OIDC)** — no API token or secret is
-stored.
+Releases are **automatic**: `.github/workflows/release.yml` runs on every push to
+`main` and publishes to [PyPI](https://pypi.org/project/stack2tf/) **only when the
+`version` in `pyproject.toml` has been bumped** (i.e. no `v<version>` tag exists
+yet). Merges without a version bump are a no-op — so PyPI never gets a duplicate
+upload. Publishing uses **PyPI Trusted Publishing (OIDC)** — no API token/secret.
+
+On a qualifying merge the workflow: builds sdist + wheel → `twine check` →
+publishes to PyPI → pushes tag `v<version>` and creates the GitHub Release.
 
 One-time setup — add a trusted publisher on PyPI
 (Project → Settings → Publishing → *Add a pending publisher*):
@@ -509,15 +513,18 @@ One-time setup — add a trusted publisher on PyPI
 | Workflow name | `release.yml` |
 | Environment | `pypi` |
 
-### Release checklist
+### To cut a release
+
+Just include a version bump in your PR:
 
 1. Update `CHANGELOG.md` — move items from **Unreleased** into a new version section.
 2. Bump `version` in `pyproject.toml` (PEP 440, e.g. `0.2.0`).
-3. Commit, tag, and push: `git tag v0.2.0 && git push origin v0.2.0`.
-4. Create a GitHub Release for the tag.
-5. The workflow builds sdist + wheel, **verifies the tag matches the
-   `pyproject.toml` version**, and publishes to PyPI.
-6. Verify the install: `pip install stack2tf==0.2.0`.
+3. Open the PR, get it approved, and **merge to `main`**.
+4. The release workflow tags `v0.2.0`, publishes to PyPI, and creates the GitHub Release automatically.
+5. Verify: `pip install stack2tf==0.2.0`.
+
+(You can also trigger it manually via **Actions → Release to PyPI → Run workflow**;
+it still only publishes when the version is new.)
 
 ## License
 
