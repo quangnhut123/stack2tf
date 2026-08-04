@@ -16,6 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 -
 
+## [0.2.0] - 2026-08-04
+
+### Added
+- Native S3 state locking (`use_lockfile = true`) as the default when
+  `--state-bucket` is set — no DynamoDB required (Terraform ≥ 1.10 / OpenTofu ≥ 1.10).
+- `--state-no-lock` to opt out of locking, and a startup warning when native S3
+  locking is used with a CLI older than 1.10.
+- CircleCI orb: install Terraform **or** OpenTofu based on `tf`
+  (`terraform-version` / `tofu-version`), matching the GitHub Action.
+- Automatic release-on-merge: pushing a version bump to `main` publishes to PyPI
+  and creates the tag/GitHub Release.
+
+### Changed
+- Release workflow now publishes on a version-bumped merge to `main` (previously
+  triggered by publishing a GitHub Release); removed the TestPyPI job.
+- `--state-dynamodb-table` is now optional (native S3 locking is the default).
+
+### Docs
+- Three-way comparison (stack2tf vs Terragrunt vs Terraform Stacks), "State and
+  locking" section, PyPI install section, `CONTRIBUTING.md`, `SECURITY.md`, and
+  issue/PR templates.
+
 ## [0.1.0] - 2026-08-04
 
 ### Added
@@ -32,5 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Packaging (`pip install stack2tf`), a reusable GitHub Action, a CircleCI orb,
   and a no-cloud example fixture (`examples/local-stack`).
 
-[Unreleased]: https://github.com/quangnhut123/stack2tf/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/quangnhut123/stack2tf/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/quangnhut123/stack2tf/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/quangnhut123/stack2tf/releases/tag/v0.1.0
