@@ -120,6 +120,7 @@ def cmd_run(stack_dir, args, action):
     if getattr(args, "state_bucket", None):
         state = {"bucket": args.state_bucket, "region": args.state_region,
                  "dynamodb_table": args.state_dynamodb_table,
+                 "no_lock": getattr(args, "state_no_lock", False),
                  "key_prefix": args.state_key_prefix}
     mocks = R.load_json_file(args.mocks) if getattr(args, "mocks", None) else None
     upstream = R.load_upstreams(getattr(args, "upstream", []))
@@ -151,7 +152,10 @@ def main():
                          "(else $AWS_WEB_IDENTITY_TOKEN[_FILE])")
     ap.add_argument("--state-bucket", help="S3 bucket for remote state (else local)")
     ap.add_argument("--state-region", help="region of the S3 state bucket")
-    ap.add_argument("--state-dynamodb-table", help="DynamoDB table for state locking")
+    ap.add_argument("--state-dynamodb-table",
+                    help="DynamoDB table for locking (optional; default is native S3 lockfile)")
+    ap.add_argument("--state-no-lock", action="store_true",
+                    help="disable state locking entirely (not recommended)")
     ap.add_argument("--state-key-prefix", default="stack2tf", help="S3 state key prefix")
     ap.add_argument("--mocks",
                     help="JSON file of mock dependency outputs for a first-time plan "

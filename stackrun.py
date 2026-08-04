@@ -315,8 +315,14 @@ def _backend_block(unit, meta, state):
              f'    key    = "{key}"',
              f'    region = "{state["region"]}"',
              "    encrypt = true"]
+    # Locking: use exactly one mechanism.
+    #   - DynamoDB if a table is given (legacy),
+    #   - otherwise native S3 lock file (Terraform >= 1.10 / OpenTofu >= 1.10),
+    #   - unless explicitly disabled.
     if state.get("dynamodb_table"):
         lines.append(f'    dynamodb_table = "{state["dynamodb_table"]}"')
+    elif not state.get("no_lock"):
+        lines.append("    use_lockfile = true")
     lines += ["  }", "}", ""]
     return "\n".join(lines)
 
@@ -353,6 +359,24 @@ def tf(cmd, cwd, tf_bin, env=None, capture=False):
     print(f"    $ {' '.join(full)}  (cwd={os.path.relpath(cwd)})")
     return subprocess.run(full, cwd=cwd, env=env,
                           capture_output=capture, text=True, check=True)
+
+
+def _tf_version(tf_bin):
+    """Return (major, minor) of the terraform/tofu binary, or None if unknown."""
+    v = ""
+    try:
+        r = subprocess.run([tf_bin, "version", "-json"], capture_output=True,
+                           text=True, check=True)
+        v = json.loads(r.stdout or "{}").get("terraform_version", "")
+    except Exception:  # noqa
+        try:
+            r = subprocess.run([tf_bin, "version"], capture_output=True, text=True)
+            m = re.search(r"v(\d+)\.(\d+)\.\d+", r.stdout)
+            v = f"{m.group(1)}.{m.group(2)}" if m else ""
+        except Exception:  # noqa
+            return None
+    m = re.match(r"(\d+)\.(\d+)", v)
+    return (int(m.group(1)), int(m.group(2))) if m else None
 
 
 def _run_one(n, by_name, out_dir, meta, collected, tf_bin, action, env):
@@ -515,6 +539,14 @@ def run(stack_dir, deploy_file, out_root, tf_bin, action, dry_run, target,
     if not shutil.which(tf_bin):
         raise SystemExit(f"'{tf_bin}' not found on PATH; install it or use --dry-run")
 
+    # native S3 lockfile needs terraform >= 1.10 / opentofu >= 1.10
+    if state and not state.get("dynamodb_table") and not state.get("no_lock"):
+        ver = _tf_version(tf_bin)
+        if ver and ver < (1, 10):
+            print(f"    (warning: native S3 state locking (use_lockfile) needs "
+                  f"{tf_bin} >= 1.10; detected {ver[0]}.{ver[1]}. "
+                  f"Use --state-dynamodb-table, --state-no-lock, or upgrade.)")
+
     # OIDC token passed to terraform as TF_VAR_identity_token (kept off disk)
     env = dict(os.environ)
     token = _load_identity_token(identity_token_file)
@@ -598,7 +630,10 @@ if __name__ == "__main__":
     ap.add_argument("--identity-token-file", help="file containing the OIDC JWT")
     ap.add_argument("--state-bucket", help="S3 bucket for remote state")
     ap.add_argument("--state-region", help="region of the S3 state bucket")
-    ap.add_argument("--state-dynamodb-table", help="DynamoDB table for state locking")
+    ap.add_argument("--state-dynamodb-table",
+                    help="DynamoDB table for locking (optional; default is native S3 lockfile)")
+    ap.add_argument("--state-no-lock", action="store_true",
+                    help="disable state locking entirely (not recommended)")
     ap.add_argument("--state-key-prefix", default="stack2tf", help="S3 key prefix")
     ap.add_argument("--mocks", help="JSON file of mock outputs {component: {out: val}}")
     ap.add_argument("--upstream", action="append", default=[],
@@ -608,6 +643,7 @@ if __name__ == "__main__":
     if args.state_bucket:
         state = {"bucket": args.state_bucket, "region": args.state_region,
                  "dynamodb_table": args.state_dynamodb_table,
+                 "no_lock": args.state_no_lock,
                  "key_prefix": args.state_key_prefix}
     mocks = load_json_file(args.mocks) if args.mocks else None
     run(args.stack_dir, args.deploy_file, args.out, args.tf,
