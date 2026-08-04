@@ -354,7 +354,7 @@ wrapper disabled), and runs the command:
 
 ```yaml
 - uses: actions/checkout@v4          # checkout the repo that holds your stack
-- uses: quangnhut123/stack2tf@v0.1.0
+- uses: quangnhut123/stack2tf@v0.2.0
   with:
     command: plan                    # list | show | validate | plan | apply | destroy
     chdir: my-stack
@@ -362,6 +362,9 @@ wrapper disabled), and runs the command:
     tf: terraform                    # or: tofu
     args: "--state-bucket my-tf-state --state-region ap-southeast-1 --parallelism 4"
 ```
+
+A full, ready-to-copy workflow (PR plan gate + apply on `main` with AWS OIDC) is
+in [`examples/github-actions.yml`](examples/github-actions.yml).
 
 Inputs: `command`, `chdir` (required), `deployment`, `tf`, `args`,
 `python-version`, `terraform-version`, `tofu-version`. For real `apply`, add an
@@ -474,6 +477,7 @@ action.yml             reusable GitHub composite Action
 .github/workflows/     ci.yml (fixture check) + release.yml (publish to PyPI)
 circleci/orb.yml       publishable CircleCI orb
 examples/local-stack/  no-AWS, 2-component fixture for trying `plan`
+examples/github-actions.yml    consumer example workflow (uses the Action)
 examples/circleci-config.yml   consumer example for the orb
 ```
 

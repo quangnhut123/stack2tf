@@ -13,7 +13,7 @@ workflows:
           name: plan
           command: plan
           chdir: examples/local-stack
-          # source: git+https://github.com/quangnhut123/stack2tf@v0.1.0   # if not on PyPI
+          # source: stack2tf==0.2.0   # pin a version; default installs latest from PyPI
 
       # Real apply, gated to main. Configure AWS creds/OIDC via a context.
       - stack2tf/stack2tf:
