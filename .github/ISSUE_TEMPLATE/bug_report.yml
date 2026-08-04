@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a problem with stack2tf
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact stack2tf command(s) you ran.
+      placeholder: |
+        python3 stack2tf.py plan --chdir my-stack --deployment prod
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output / error
+      description: Relevant output. Please redact account IDs, ARNs, and tokens.
+      render: shell
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: stack2tf version, and `terraform version` / `tofu version`, and Python version.
+      placeholder: "stack2tf 0.1.0 | terraform 1.15.8 | python 3.11"
+    validations:
+      required: true

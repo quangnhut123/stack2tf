@@ -443,7 +443,8 @@ python3 hclexpr.py     # -> ALL PASS
 
 ## Contributing
 
-Issues and pull requests are welcome. Please:
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for
+setup and guidelines. In short:
 
 1. Keep changes focused and covered by the `examples/local-stack` fixture where possible.
 2. Run `python3 hclexpr.py` and `python3 stack2tf.py plan --chdir examples/local-stack` before submitting.
