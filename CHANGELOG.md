@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
--
-
 ### Changed
+- Versioning is now automatic: the package version is derived from git tags
+  (`setuptools-scm`) and the release workflow computes the next version from
+  Conventional Commits on every push to `main` (feat → minor, `!`/BREAKING →
+  major, otherwise patch; `[skip release]` to skip). No manual version edits.
+
+### Added
 -
 
 ### Fixed

@@ -1,13 +1,17 @@
 name: Release to PyPI
 
-# Auto-release: on every push to main, publish to PyPI **only if** the version
-# in pyproject.toml has been bumped (i.e. no git tag v<version> exists yet).
-# Trivial merges without a version bump are a no-op, so PyPI never sees a
-# duplicate upload. Uses PyPI Trusted Publishing (OIDC) — no token/secret.
+# Automatic versioning: every push to main computes the next version from the
+# commits since the last tag, creates that tag, and publishes to PyPI. The
+# version is derived from git tags via setuptools-scm — nothing is committed
+# back to main (works with branch protection).
 #
-# Release flow: bump `version` in pyproject.toml (and update CHANGELOG.md) in
-# your PR; when it merges to main, this tags v<version>, publishes to PyPI, and
-# creates the GitHub Release.
+# Bump rules (Conventional Commits, patch is the default so every merge bumps):
+#   feat:            -> minor
+#   BREAKING CHANGE  -> major   (or a "!" after the type, e.g. feat!: )
+#   anything else    -> patch
+# Put "[skip release]" in the merge commit to skip a release.
+#
+# Publishing uses PyPI Trusted Publishing (OIDC) — no token/secret.
 
 on:
   push:
@@ -22,42 +26,63 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  check:
-    name: Detect version bump
+  version:
+    name: Compute next version
     runs-on: ubuntu-latest
     outputs:
-      release: ${{ steps.decide.outputs.release }}
-      version: ${{ steps.decide.outputs.version }}
+      release: ${{ steps.v.outputs.release }}
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - id: decide
+      - id: v
         run: |
-          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::v$VERSION already released — skipping."
-          else
-            echo "release=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::New version v$VERSION — releasing."
+          git fetch --tags --force
+          LAST=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          if [ -z "$LAST" ]; then LASTV="0.0.0"; RANGE=""; else LASTV="${LAST#v}"; RANGE="$LAST..HEAD"; fi
+          LOG=$(git log --format='%s%n%b' $RANGE)
+          if [ -n "$RANGE" ] && [ -z "$(git log --oneline $RANGE)" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"; echo "::notice::No new commits since $LAST."; exit 0
           fi
+          if echo "$LOG" | grep -qiE '\[skip release\]'; then
+            echo "release=false" >> "$GITHUB_OUTPUT"; echo "::notice::[skip release] found."; exit 0
+          fi
+          if echo "$LOG" | grep -qE 'BREAKING CHANGE|^[a-z]+(\([^)]+\))?!:'; then BUMP=major
+          elif echo "$LOG" | grep -qE '^feat(\([^)]+\))?:'; then BUMP=minor
+          else BUMP=patch; fi
+          IFS=. read -r MA MI PA <<< "$LASTV"
+          case "$BUMP" in
+            major) MA=$((MA+1)); MI=0; PA=0 ;;
+            minor) MI=$((MI+1)); PA=0 ;;
+            patch) PA=$((PA+1)) ;;
+          esac
+          NEXT="$MA.$MI.$PA"
+          echo "::notice::Releasing v$NEXT ($BUMP bump from v$LASTV)"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build distributions
-    needs: check
-    if: needs.check.outputs.release == 'true'
+    name: Tag and build
+    needs: version
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write          # push the tag
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create tag
+        env:
+          V: ${{ needs.version.outputs.version }}
+        run: |
+          git tag "v$V"
+          git push origin "v$V"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Build sdist + wheel
+      - name: Build sdist + wheel (version from the new tag)
         run: |
           python -m pip install --upgrade build twine
           python -m build
@@ -69,14 +94,14 @@ jobs:
 
   pypi-publish:
     name: Publish to PyPI
-    needs: [check, build]
-    if: needs.check.outputs.release == 'true'
+    needs: [version, build]
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/project/stack2tf/
     permissions:
-      id-token: write        # trusted publishing (OIDC)
+      id-token: write          # trusted publishing (OIDC)
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -84,22 +109,18 @@ jobs:
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
 
-  finalize:
-    name: Tag + GitHub Release
-    needs: [check, pypi-publish]
-    if: needs.check.outputs.release == 'true'
+  release-notes:
+    name: GitHub Release
+    needs: [version, pypi-publish]
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # create tag + release
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Tag and create release
-        env:
+      - env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.check.outputs.version }}
-        run: |
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
-          gh release create "v$VERSION" --title "v$VERSION" --generate-notes
+          V: ${{ needs.version.outputs.version }}
+        run: gh release create "v$V" --title "v$V" --generate-notes

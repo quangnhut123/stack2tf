@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=61", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "stack2tf"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Run HCP Terraform Stacks with plain Terraform / OpenTofu"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -31,3 +31,9 @@ stack2tf = "stack2tf:main"
 
 [tool.setuptools]
 py-modules = ["stack2tf", "stackrun", "stackparse", "hclexpr"]
+
+[tool.setuptools_scm]
+# Version is derived from git tags (vX.Y.Z). The release workflow creates the
+# tag; there is no version stored in this file. Source builds without a tag get
+# a dev version; sdist/wheel builds bake the resolved version.
+fallback_version = "0.0.0"
