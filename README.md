@@ -41,7 +41,7 @@ same model as Terraform Stacks, without the hosted platform.
 - [Whole-stack planning](#whole-stack-planning)
 - [Cross-stack outputs](#cross-stack-outputs)
 - [CI/CD](#cicd)
-- [Compatibility with Terraform Stacks](#compatibility-with-terraform-stacks)
+- [Comparison: stack2tf vs Terragrunt vs Terraform Stacks](#comparison-stack2tf-vs-terragrunt-vs-terraform-stacks)
 - [Limitations](#limitations)
 - [Project layout](#project-layout)
 - [Contributing](#contributing)
@@ -395,25 +395,42 @@ jobs:
 The `stack-plan.json` written by `plan` is a convenient CI artifact — upload it
 or surface its add/change/destroy totals on the pull request.
 
-## Compatibility with Terraform Stacks
+## Comparison: stack2tf vs Terragrunt vs Terraform Stacks
 
-| Capability | stack2tf | Terraform Stacks (HCP) |
-|---|---|---|
-| Component DAG + ordering | ✅ | ✅ |
-| Output wiring between components | ✅ | ✅ |
-| `for_each` / per-account providers | ✅ | ✅ |
-| Deployment inputs (any HCL function) | ✅ | ✅ |
-| Per-component state | ✅ | ✅ |
-| Unified whole-stack plan | ✅ (from real plan artifacts) | ✅ |
-| **Cross-component _deferred/unknown_ planning** | ⚠️ placeholder approximation | ✅ (hosted engine) |
-| Runs on open-source CLI, self-hosted | ✅ | ❌ (hosted) |
+All three orchestrate multiple Terraform/OpenTofu components; they differ in how
+they run and what they require.
 
-The one capability that cannot be fully reproduced is HCP's **cross-component
-deferred planning** (treating a not-yet-created upstream output as *unknown*
-during a whole-stack plan). The open-source CLI plans one root module at a time
-with concrete inputs and has no way to accept a genuinely-unknown cross-root
-value. stack2tf approximates it with derived placeholders; the exact behavior is
-gated on a CLI feature (OpenTofu issue #812, unshipped). See
+> Comparison basis: **Terragrunt 1.x** (the `run --all` line, incl. the native
+> `terragrunt.stack.hcl` feature; latest referenced **v1.1.2**) and **HCP
+> Terraform Stacks** as of 2026. Based on official docs, not a pinned test run.
+
+| Capability | stack2tf | Terragrunt | Terraform Stacks (HCP) |
+|---|---|---|---|
+| Component DAG + ordering | ✅ | ✅ (`run --all`) | ✅ |
+| Output wiring between components | ✅ (`var.dep_*`) | ✅ (`dependency` blocks) | ✅ |
+| `for_each` / per-account providers | ✅ (expanded) | ✅ (units + generate) | ✅ |
+| Deployment inputs (any HCL function) | ✅ | ✅ | ✅ |
+| Per-component state | ✅ | ✅ | ✅ |
+| Concurrent execution | ✅ (`--parallelism`) | ✅ (run queue) | ✅ |
+| Unified whole-stack plan report | ✅ (aggregated from plan JSON) | ⚠️ per-unit output | ✅ |
+| **Cross-component _deferred/unknown_ planning** | ⚠️ placeholder approximation | ⚠️ static `mock_outputs` | ✅ (hosted engine) |
+| Reads Stacks files (`*.tfcomponent/tfdeploy.hcl`) directly | ✅ | ❌ (own `terragrunt.hcl`) | ✅ (native) |
+| Extra tooling / binary required | ❌ (Python + `terraform`/`tofu`) | ✅ (the `terragrunt` binary) | hosted service |
+| Runs on open-source CLI, self-hosted | ✅ | ✅ | ❌ (hosted) |
+
+**How to read this:** stack2tf runs your existing Stacks configuration as-is on
+the plain CLI with no additional tool. Terragrunt is a general-purpose
+orchestrator that uses its own configuration language and binary. Terraform
+Stacks is the hosted product. On *cross-component deferred planning*, both
+stack2tf and Terragrunt approximate (derived placeholders / static
+`mock_outputs`) — only HCP's hosted engine does it natively (see below).
+
+The one capability that cannot be fully reproduced on the open-source CLI is
+HCP's **cross-component deferred planning** (treating a not-yet-created upstream
+output as *unknown* during a whole-stack plan). The CLI plans one root module at
+a time with concrete inputs and has no way to accept a genuinely-unknown
+cross-root value. stack2tf approximates it with derived placeholders; the exact
+behavior is gated on a CLI feature (OpenTofu issue #812, unshipped). See
 [Limitations](#limitations).
 
 ## Limitations
