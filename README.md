@@ -400,6 +400,10 @@ or surface its add/change/destroy totals on the pull request.
 All three orchestrate multiple Terraform/OpenTofu components; they differ in how
 they run and what they require.
 
+> Comparison basis: **Terragrunt 1.x** (the `run --all` line, incl. the native
+> `terragrunt.stack.hcl` feature; latest referenced **v1.1.2**) and **HCP
+> Terraform Stacks** as of 2026. Based on official docs, not a pinned test run.
+
 | Capability | stack2tf | Terragrunt | Terraform Stacks (HCP) |
 |---|---|---|---|
 | Component DAG + ordering | ✅ | ✅ (`run --all`) | ✅ |
